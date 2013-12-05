@@ -15,12 +15,14 @@ import java.util.Set;
 import java.util.concurrent.Future;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.DialogFragment;
 import android.app.Fragment;
 import android.app.LoaderManager;
 import android.app.LoaderManager.LoaderCallbacks;
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.CursorLoader;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -1657,12 +1659,12 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
     }
 
     /**
-     * Handle a select or unselect swipe event.
+     * Handle a mark as read od delete swipe event.
      *
      * @param downMotion
      *         Event that started the swipe
      * @param selected
-     *         {@code true} if this was an attempt to select (i.e. left to right).
+     *         {@code true} if this was an attempt to mark as read (i.e. left to right). False to delete the swiped item
      */
     private void handleSwipe(final MotionEvent downMotion, final boolean selected) {
         int x = (int) downMotion.getRawX();
@@ -1681,7 +1683,9 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
 
             int listViewPosition = mListView.pointToPosition(listX, listY);
 
-            toggleMessageRead(listViewPosition);
+            if(selected)toggleMessageRead(listViewPosition);
+            else askForDeletion(listViewPosition);//Delete on a swype from the left to the right
+            
         }
     }
 
@@ -2242,7 +2246,31 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
 
         toggleMessageSelectWithAdapterPosition(adapterPosition);
     }
+    /**
+     * asks the user before the message at the adapterPosition gets deleted
+	 * @author Ari Ayvazyan
+     * @param adapterPosition is the position of the Message in the MessageListAdapter
+     */
+    private void askForDeletion(final int adapterPosition){
+    	new AlertDialog.Builder(getActivity())
+    	.setTitle("Confirm")
+    	.setMessage("Do you really want to delete this mail?")
+    	.setIcon(android.R.drawable.ic_dialog_alert)
+    	.setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
 
+    	    public void onClick(DialogInterface dialog, int whichButton) {
+    	    	Message message = getMessageAtPosition(adapterPosition-1);
+    	        onDelete(message);
+    	    }})
+    	 .setNegativeButton(android.R.string.no, null).show();
+    	
+    	
+    }
+    /**
+	 * toggles a messae as read using the position in the MessageListAdapter and checks if the position is valid
+     * @author Ari Ayvazyan
+     * @param adapterPosition is the position of the Message in the MessageListAdapter
+	 */
     private void toggleMessageRead(int listViewPosition) {
         int adapterPosition = listViewToAdapterPosition(listViewPosition);
         if (adapterPosition == AdapterView.INVALID_POSITION) {
@@ -2258,6 +2286,11 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
 
         setFlag(adapterPosition,Flag.FLAGGED, !flagged);
     }
+    /**
+     * toggles a Message read flag by the given adapterPosition
+     * @author Ari Ayvazyan
+     * @param adapterPosition is the position of the Message in the MessageListAdapter
+     */
     private void toggleMessageReadWithAdapterPosition(int adapterPosition) {
         Cursor cursor = (Cursor) mAdapter.getItem(adapterPosition);
         long uniqueId = cursor.getLong(mUniqueIdColumn);
